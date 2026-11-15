@@ -1,0 +1,47 @@
+@import "tailwindcss";
+@import "@fontsource/press-start-2p/400.css";
+@import "@fontsource/chakra-petch/400.css";
+@import "@fontsource/chakra-petch/600.css";
+@import "@fontsource/chakra-petch/700.css";
+
+/* The palette is the operatory: surgical drape, enamel, gingiva, dentine, radiograph. Single dark theme by choice. */
+@theme {
+  --color-drape: #0a2a2e;
+  --color-drape-2: #103b40;
+  --color-drape-3: #18525a;
+  --color-line: #2a6a72;
+  --color-enamel: #f6efdc;
+  --color-mute: #a5c4c0;
+  --color-gingiva: #ff6f7d;
+  --color-dentine: #ffc857;
+  --color-xray: #8fd8ff;
+  --color-ok: #7be495;
+  --color-bad: #ff5a5a;
+  --font-display: "Press Start 2P", "Courier New", monospace;
+  --font-sans: "Chakra Petch", "Trebuchet MS", Verdana, sans-serif;
+}
+
+html { color-scheme: dark; }
+body {
+  background: var(--color-drape) radial-gradient(120% 60% at 50% 0, #14494f 0, var(--color-drape) 60%) no-repeat;
+  color: var(--color-enamel);
+  font-family: var(--font-sans);
+  font-weight: 500;
+}
+body::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.13) 0 1px, transparent 1px 3px);
+}
+:focus-visible { outline: 3px solid var(--color-xray); outline-offset: 2px; }
+
+@layer components {
+  .marquee { font-family: var(--font-display); font-size: 15px; letter-spacing: 1px; text-shadow: 2px 2px 0 var(--color-gingiva), -2px -1px 0 rgba(143, 216, 255, 0.7); }
+  .kicker { font-family: var(--font-display); font-size: 9px; line-height: 1.4; letter-spacing: 1px; text-transform: uppercase; color: var(--color-xray); }
+  .panel { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 2px solid var(--color-line); border-radius: 10px; background: var(--color-drape-2); }
+  .btn-primary { display: block; padding: 14px 16px; border-radius: 10px; background: var(--color-gingiva); color: #2a0a10; font-family: var(--font-display); font-size: 12px; box-shadow: 0 4px 0 #a83a47; cursor: pointer; }
+  .btn-primary:active { transform: translateY(3px); box-shadow: 0 1px 0 #a83a47; }
+  .btn-primary:disabled { opacity: 0.6; }
+  .btn-ghost { display: block; padding: 10px; border: 2px dashed var(--color-line); border-radius: 10px; color: var(--color-xray); font-weight: 600; text-align: center; cursor: pointer; }
+  .chip { display: inline-block; padding: 3px 7px; border: 1px solid currentColor; border-radius: 3px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.2; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

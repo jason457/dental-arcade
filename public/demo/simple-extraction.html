@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dental Arcade Extraction Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: one phone-width arcade cabinet screen. Marquee on top, HUD strip, a single stage,
+   and a supervisor dialogue box pinned to the bottom like an RPG text box.
+   Single-theme by choice: the palette is the operatory. Drape, enamel, gingiva, dentine, radiograph. */
+:root{
+  color-scheme:dark;
+  --drape:#0a2a2e; --drape-2:#103b40; --drape-3:#18525a; --line:#2a6a72;
+  --enamel:#f6efdc; --mute:#a5c4c0;
+  --gingiva:#ff6f7d; --dentine:#ffc857; --xray:#8fd8ff;
+  --ok:#7be495; --bad:#ff5a5a;
+  --display:"Press Start 2P","Courier New",monospace;
+  --body:"Chakra Petch","Trebuchet MS",Verdana,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--drape);color:var(--enamel);font:500 16px/1.5 var(--body);
+  background-image:radial-gradient(120% 60% at 50% 0,#14494f 0,var(--drape) 60%)}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.13) 0 1px,transparent 1px 3px)}
+#cab{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding:0 16px}
+header{padding:14px 0 8px;display:flex;flex-direction:column;gap:8px}
+.marquee{font:400 15px/1.2 var(--display);letter-spacing:1px;margin:0;color:var(--enamel);
+  text-shadow:2px 2px 0 var(--gingiva),-2px -1px 0 rgba(143,216,255,.7)}
+.demo{font:600 11px/1.3 var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--drape);
+  background:var(--dentine);padding:3px 8px;border-radius:3px;align-self:flex-start}
+#hud{display:none;gap:8px;align-items:center;justify-content:space-between}
+#hud.on{display:flex}
+.pips{display:flex;gap:3px;flex:1}
+.pips i{height:8px;flex:1;background:var(--drape-3);border-radius:1px}
+.pips i.d{background:var(--ok)} .pips i.c{background:var(--dentine)}
+.score{font:400 11px var(--display);color:var(--dentine);font-variant-numeric:tabular-nums;white-space:nowrap}
+.icon{background:var(--drape-2);border:2px solid var(--line);color:var(--enamel);border-radius:6px;
+  font:600 12px var(--body);padding:6px 8px;cursor:pointer}
+main{flex:1;padding:8px 0 16px;display:flex;flex-direction:column;gap:12px}
+.kick{font:400 9px/1.4 var(--display);color:var(--xray);margin:0;letter-spacing:1px;text-transform:uppercase}
+h2{font:700 22px/1.2 var(--body);margin:0;text-wrap:balance}
+p{margin:0}
+.lead{color:var(--mute)}
+.panel{background:var(--drape-2);border:2px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.fig{border:2px solid var(--line);border-radius:10px;overflow:hidden;background:#061a1c;position:relative}
+.fig svg{display:block;width:100%;height:auto}
+.fig figcaption,.cap{font-size:12px;color:var(--mute);padding:6px 10px;background:var(--drape-2)}
+figure{margin:0}
+button{font-family:var(--body);touch-action:manipulation}
+button:focus-visible,input:focus-visible,label:focus-within{outline:3px solid var(--xray);outline-offset:2px}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{display:flex;align-items:center;gap:10px;text-align:left;background:var(--drape-2);color:var(--enamel);
+  border:2px solid var(--line);border-radius:10px;padding:12px;font:500 15px/1.35 var(--body);cursor:pointer;min-height:52px}
+.opt svg{width:44px;height:44px;flex:none;color:var(--xray)}
+.opt:hover:not(:disabled){border-color:var(--xray)}
+.opt.ok{border-color:var(--ok);background:#12463a}
+.opt.no{border-color:var(--bad);opacity:.6}
+.opt.ok::after{content:"CORRECT";font:400 8px var(--display);color:var(--ok);margin-left:auto;padding-left:8px}
+.opt.no::after{content:"NO";font:400 8px var(--display);color:var(--bad);margin-left:auto;padding-left:8px}
+.opt:disabled{cursor:default}
+.why{font-size:14px;color:var(--dentine);min-height:0}
+.chk{display:flex;gap:10px;align-items:flex-start;background:var(--drape-2);border:2px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;font-size:15px}
+.chk input{width:20px;height:20px;margin-top:2px;accent-color:var(--dentine);flex:none}
+.chk.ok{border-color:var(--ok)} .chk.no{border-color:var(--bad)} .chk.miss{border-color:var(--dentine);border-style:dashed}
+.chk em{font-style:normal;font:400 8px var(--display);margin-left:auto;padding-left:6px;white-space:nowrap}
+.chk.ok em{color:var(--ok)} .chk.no em{color:var(--bad)} .chk.miss em{color:var(--dentine)}
+.go{background:var(--gingiva);color:#2a0a10;border:0;border-radius:10px;padding:14px 16px;font:400 12px var(--display);
+  cursor:pointer;box-shadow:0 4px 0 #a83a47;align-self:stretch}
+.go:active{transform:translateY(3px);box-shadow:0 1px 0 #a83a47}
+.go.alt{background:var(--drape-3);color:var(--enamel);box-shadow:0 4px 0 #0c3035}
+.ghost{background:none;border:2px dashed var(--line);color:var(--xray);border-radius:10px;padding:10px;font:600 14px var(--body);cursor:pointer}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1 1 140px}
+.chip{display:inline-block;font:600 11px/1 var(--body);letter-spacing:.06em;text-transform:uppercase;padding:4px 7px;border-radius:3px;border:1px solid currentColor}
+.chip.hit{color:var(--gingiva)} .chip.miss{color:var(--ok)} .chip.plan{color:var(--mute)} .chip.live{color:var(--dentine)}
+dl.facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:14px}
+dl.facts dt{color:var(--mute)} dl.facts dd{margin:0}
+/* supervisor dialogue */
+#sup{position:sticky;bottom:0;z-index:20;margin:0 -16px;padding:10px 16px 12px;background:linear-gradient(transparent,var(--drape) 18%);display:none}
+#sup.on{display:block}
+.say{display:flex;gap:10px;background:#061a1c;border:2px solid var(--enamel);border-radius:10px;padding:10px;box-shadow:4px 4px 0 rgba(0,0,0,.4)}
+.face{width:56px;height:56px;flex:none}
+.face.pop{animation:pop .3s}
+@keyframes pop{0%{transform:scale(.8) rotate(-6deg)}60%{transform:scale(1.1)}100%{transform:none}}
+.say b{font:400 8px/1.5 var(--display);color:var(--dentine);display:block;letter-spacing:.5px}
+.say .line{font-size:15px;line-height:1.35}
+.say .fact{font-size:13px;color:var(--xray);margin-top:4px;line-height:1.35}
+/* gauges */
+.gauge{height:26px;border:2px solid var(--enamel);border-radius:6px;position:relative;background:#061a1c;overflow:hidden}
+.gauge .zone{position:absolute;top:0;bottom:0;left:45%;width:27%;background:rgba(123,228,149,.35)}
+.gauge .red{position:absolute;top:0;bottom:0;left:86%;right:0;background:rgba(255,90,90,.45)}
+.gauge .fill{position:absolute;top:0;bottom:0;left:0;width:0;background:var(--dentine);mix-blend-mode:screen}
+.bar{height:12px;border-radius:3px;background:var(--drape-3);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--ok)}
+.lab{display:flex;justify-content:space-between;font:400 8px var(--display);color:var(--mute);letter-spacing:.5px}
+.hold{background:var(--dentine);color:#2a1c00;border:0;border-radius:12px;padding:20px;font:400 12px var(--display);cursor:pointer;
+  box-shadow:0 5px 0 #a87a1c;user-select:none;-webkit-user-select:none;touch-action:none;position:relative;overflow:hidden}
+.hold.dn{transform:translateY(4px);box-shadow:0 1px 0 #a87a1c}
+.hold .ring{position:absolute;left:0;bottom:0;height:6px;width:0;background:#2a1c00}
+.hold.dn .ring{width:100%;transition:width .65s linear}
+.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-3px)}}
+#t46bl{transition:transform .5s ease;transform-origin:80px 150px;transform-box:view-box}
+/* arch */
+.arch g{cursor:pointer}
+.arch circle{fill:var(--enamel);stroke:#061a1c;stroke-width:2}
+.arch text{font:700 9px var(--body);fill:#0a2a2e;text-anchor:middle;pointer-events:none}
+.arch g.no circle{fill:var(--bad)} .arch g.ok circle{fill:var(--ok)}
+.arch g:focus-visible circle{stroke:var(--xray);stroke-width:4}
+/* timeline */
+.tl{list-style:none;margin:0;padding:0 0 0 18px;border-left:3px solid var(--line);display:flex;flex-direction:column;gap:14px}
+.tl li{position:relative;display:flex;flex-direction:column;gap:6px}
+.tl li::before{content:"";position:absolute;left:-27px;top:4px;width:12px;height:12px;background:var(--dentine);border:2px solid var(--drape);border-radius:2px}
+.tl .when{font:400 9px var(--display);color:var(--dentine);letter-spacing:.5px}
+.ret{font:400 10px/1.5 var(--display);color:var(--gingiva);animation:blink 1s steps(2) 3}
+@keyframes blink{50%{opacity:.2}}
+/* report */
+.grade{font:400 56px/1 var(--display);color:var(--dentine);text-shadow:4px 4px 0 var(--gingiva)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dom{display:grid;grid-template-columns:90px 1fr 54px;gap:8px;align-items:center;font-size:13px}
+.dom span:last-child{text-align:right;font-variant-numeric:tabular-nums}
+/* modal */
+#modal{position:fixed;inset:0;background:rgba(3,16,18,.92);z-index:40;display:none;overflow:auto;padding:16px}
+#modal.on{display:block}
+#modal .in{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.cat h3{font:700 15px var(--body);margin:0;color:var(--xray)}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.tags span{font-size:12px;border:1px solid var(--line);border-radius:3px;padding:2px 6px;color:var(--mute)}
+.tags span.live{border-color:var(--dentine);color:var(--dentine)}
+.hero{display:flex;flex-direction:column;gap:14px;align-items:flex-start;padding-top:8px}
+.hero h1{font:400 26px/1.25 var(--display);margin:0;text-shadow:3px 3px 0 var(--gingiva),-2px -2px 0 rgba(143,216,255,.6)}
+.hero .tagline{font-weight:600;color:var(--dentine)}
+.float{animation:float 2.4s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-6px)}}
+textarea{width:100%;background:#061a1c;color:var(--enamel);border:2px solid var(--line);border-radius:8px;padding:8px;font:500 13px var(--body)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="cab">
+  <header>
+    <p class="marquee">DENTAL ARCADE</p>
+    <span class="demo">Demo · not clinically approved · synthetic patient</span>
+    <div id="hud">
+      <div class="pips" id="pips" aria-hidden="true"></div>
+      <span class="score" id="score">000</span>
+      <button class="icon" id="supBtn" type="button">Supervisor</button>
+    </div>
+  </header>
+  <main id="stage"></main>
+  <div id="sup" aria-live="polite"></div>
+</div>
+<div id="modal" role="dialog" aria-modal="true"><div class="in" id="modalIn"></div></div>
+
+<script>
+"use strict";
+/* ============ CASE ENGINE: one synthetic case, structured as data ============ */
+const CASE={
+  id:"EXT-001", title:"Simple extraction, tooth 46",
+  patient:{label:"Synthetic patient P-046", age:54, sex:"male"},
+  complaint:"Throbbing pain lower right for two weeks, worse at night. Wants the tooth out.",
+  history:["Hypertension, controlled on amlodipine. Today 132/84","No anticoagulants or antiplatelets","No known allergies","Smokes about 10 cigarettes a day"],
+  findings:"46 grossly carious and broken down, not restorable. Tender to percussion.",
+  radiograph:"Deep caries into the pulp of 46. Dark area at the mesial root tip. Distal root curves towards 47."
+};
+/* ============ CLINICAL DECISION ENGINE: deterministic demo rules ============ */
+const RULES={
+  S1:{label:"Correct site confirmed",max:10,dom:"Safety",safety:1},
+  A1:{label:"Anaesthetic technique",max:6,dom:"Technique"},
+  A2:{label:"Anaesthesia tested before starting",max:4,dom:"Safety",safety:1},
+  I1:{label:"Instrument to loosen",max:5,dom:"Technique"},
+  I2:{label:"Instrument to deliver",max:5,dom:"Technique"},
+  T1:{label:"Elevator point of application",max:10,dom:"Technique"},
+  T2:{label:"Controlled luxation force",max:10,dom:"Technique"},
+  S2:{label:"Mandible supported",max:8,dom:"Safety",safety:1},
+  T3:{label:"Controlled forceps movement",max:7,dom:"Technique"},
+  D1:{label:"Response to unexpected resistance",max:20,dom:"Judgement",safety:1},
+  C1:{label:"Checks before discharge",max:5,dom:"Safety",safety:1},
+  C2:{label:"Aftercare advice",max:10,dom:"Aftercare"}
+};
+const FACT={
+  S1:"Confirm the site against the notes, the radiograph and the patient. Tooth 46 is the lower right first molar.",
+  A1:"The inferior alveolar block numbs the tooth and usually the lingual gum. The long buccal injection covers the buccal gum.",
+  A2:"Test before you start: lip numbness, then probe the gum on both sides of the tooth.",
+  I1:"A simple extraction starts by loosening the tooth with an elevator to tear the periodontal ligament.",
+  I2:"Forceps match the arch and the tooth. Lower molar forceps have beaks set at a right angle to the handles.",
+  T1:"The elevator goes between tooth and bone, with crestal bone as the fulcrum. Never lever on a neighbouring tooth.",
+  T2:"Force should be controlled and steady. Bursts of high force risk fracture of tooth or bone.",
+  S2:"The non-working hand supports the lower jaw against your force. That protects the jaw joint and lets you feel the socket expand.",
+  T3:"Slow, sustained buccal and lingual pressure expands the socket. Jerky movements break teeth.",
+  D1:"Unexpected resistance means stop and reassess. The radiograph shows a curved distal root, so dividing the tooth with senior support is the planned alternative.",
+  C1:"Before he leaves: check the tooth is complete, and confirm the bleeding is controlled.",
+  C2:"Aftercare advice protects the blood clot: pressure, no vigorous rinsing, no smoking, and clear advice on when to come back."
+};
+/* ============ AI SUPERVISOR ENGINE: four voices, one set of facts ============ */
+const PERSONAS={
+  mentor:{name:"Dr. Mira Sol",tag:"Supportive Mentor",col:"#7be495",blurb:"Calm and encouraging."},
+  strict:{name:"Prof. Ironwood",tag:"Strict Supervisor",col:"#8fd8ff",blurb:"Serious about patient safety."},
+  roast:{name:"Dr. Blaze",tag:"Roast Mode",col:"#ff6f7d",blurb:"Sarcastic about your decisions, never about you."},
+  osce:{name:"Examiner 7",tag:"OSCE Examiner",col:"#ffc857",blurb:"Formal. Minimal feedback."}
+};
+const ORDER=["mentor","strict","roast","osce"];
+const L={
+intro:["Take your time. I'm right here, and every step has a reason we'll talk through.","You are responsible for this patient from now until he leaves. Begin.","Fresh gloves, fresh confidence. Let's see which one lasts longer.","This station is a simple extraction. You may begin. I will not prompt you."],
+good:["Nicely done. That's exactly the habit to build.","Correct. Continue.","Annoyingly correct. I had a joke ready and everything.","Noted."],
+S1:["Easy slip to make. Check the notes and the radiograph, then choose again.","Wrong tooth. This is the one error you never get to make. Verify the site.","Bold choice, removing a tooth nobody complained about. The notes say 46.","Incorrect site identified."],
+A1:["Not quite. Think about which nerves supply a lower molar and its gum.","That will not anaesthetise a mandibular molar reliably. Think anatomy.","That injection is doing great work on a tooth we are not removing.","Technique selected would not be expected to achieve anaesthesia."],
+A2:["Always confirm numbness first. It protects his trust in you.","You do not start until you have tested. 'Feels funny' is not a test.","'He said it feels funny' is a vibe, not a clinical finding.","Candidate did not confirm anaesthesia."],
+I1:["Have another look at the tray. Match the instrument to the job.","Wrong instrument. Know your tray before you touch a patient.","That instrument has many talents. This isn't one of them.","Incorrect instrument selected."],
+I2:["Have another look. Match the forceps to the arch and the tooth.","Wrong forceps. Upper and lower patterns are not interchangeable.","Those forceps are lovely. For a different jaw.","Incorrect instrument selected."],
+T1:["Close. The fulcrum should be bone, never a neighbour or a weak crown.","No. You lever on bone. You do not lever on the adjacent tooth.","That spot did nothing to deserve being used as a crowbar rest.","Incorrect point of application."],
+T2:["Ease off a little. Controlled force, and let the ligament give.","Too much force. Control, not strength.","This is an extraction, not an arm-wrestling final.","Excessive force observed."],
+T3:["Slow it down. Hold the pressure and let the socket expand.","Jerky. Sustained, controlled movement only.","That was less controlled movement, more opening a stuck jar.","Uncontrolled movement observed."],
+S2:["Remember the other hand. Supporting the jaw protects the joint.","Your other hand has a job. Support the mandible.","Your other hand isn't on a tea break. Support that jaw.","Mandible not supported."],
+safe:["That's the mature call. Stopping to reassess is a skill, not a failure.","Correct. You stopped, reassessed and planned. That is the standard.","Look at that, a decision made by the brain and not the biceps.","Candidate stops and reassesses. Appropriate."],
+force:["I understand the urge to push through. Resistance is information, though.","Unacceptable. Unexpected resistance means stop, not push harder.","When the tooth says no, 'push harder' isn't a treatment plan.","Candidate continues with increased force. Unsafe."],
+twist:["Good instinct to change something, but twisting a two-rooted tooth works against you.","No. You do not rotate a multi-rooted tooth.","Rotating a molar with two spread roots. The roots would like a word.","Candidate applies rotational force to a multi-rooted tooth. Unsafe."],
+abandon:["Stopping was right. He still needs a plan and a senior before he leaves.","You stopped. Then you left him with no plan. Half a decision.","You stopped, which is great. Then you ghosted the patient, which isn't.","Candidate stops without a management plan. Incomplete."],
+lucky:["It came out whole this time. Let's still talk about why that was a risk.","It held. That was luck, and luck is not a technique.","It worked. So does crossing the road blindfolded, sometimes.","Outcome uneventful. Decision remains unsafe."],
+fracture:["That crack is a root fracture. What matters now is what we do next.","Root fractured. This was avoidable. Call your senior now.","And there's the crack. The radiograph did try to warn you.","Root fracture. Candidate should escalate."],
+C1good:["Good checks. He leaves safe.","Checks complete. Good.","Thorough. I'm almost disappointed.","Pre-discharge checks complete."],
+C1:["One or two checks slipped. They take seconds and they matter.","Incomplete checks. Nobody leaves your chair unchecked.","Skipping the checks is a brave way to find out later.","Pre-discharge checks incomplete."],
+C2good:["Clear, complete advice. He'll know exactly what to do tonight.","Adequate instructions. Good.","Advice so clear even I couldn't misread it. Rare.","Post-operative instructions adequate."],
+C2:["A few gaps there. Good advice protects the clot.","Incomplete or harmful advice. The clot is your responsibility too.","Some of that advice is a great way to see him again on day three.","Post-operative instructions incomplete."],
+dry:["He's back and sore. Let's work out what this is and settle him.","Your patient is back in pain. Assess him properly.","Guess who's back. He's brought his socket and some opinions.","Patient re-attends on day three with pain."],
+retGood:["Exactly right. Gentle, comfortable and reassuring.","Correct management.","Correct. I've put my roast away, reluctantly.","Appropriate management."],
+ret:["Not the first choice here. Look at what actually settles this.","No. Review how this condition is managed.","A confident choice. The socket disagrees.","Management not appropriate."],
+healed:["He's healing well. A quick review is a nice end to the story.","Healing as expected. Discharge.","He's fine. I came all this way to roast and he's fine.","Review uneventful."],
+bleed:["A call about bleeding. Pressure sorted it, and now you know why we check.","He bled at home. Haemostasis is confirmed in the chair, not hoped for.","He's redecorating his pillow. Next time, check before he leaves.","Post-operative bleeding reported."],
+endHigh:["A really safe, thoughtful run. Be proud of that.","Acceptable. Maintain this standard.","Fine. You were good. Don't make it weird.","Candidate performance: satisfactory."],
+endMid:["Solid in places. Replay the steps you lost points on.","Inconsistent. Review the flagged steps and repeat.","A performance with range. Some of it was even dentistry.","Candidate performance: borderline."],
+endLow:["Tough run. That's what practice is for. Go again with the hints on.","Not acceptable for clinic. Repeat the station.","The good news is the patient is synthetic. Go again.","Candidate performance: unsatisfactory."]
+};
+function face(p,expr){
+  const c=PERSONAS[p].col,k="#0a2a2e";
+  const mouth={neutral:"M22,45 H42",happy:"M20,42 Q32,53 44,42",stern:"M21,47 Q32,40 43,47",shock:"M27,41 h10 v9 h-10 Z"}[expr];
+  const brow=expr==="stern"?"M16,19 L28,24 M48,19 L36,24":expr==="shock"?"M17,16 H27 M37,16 H47":"M17,21 H27 M37,21 H47";
+  const acc={mentor:'<circle cx="16" cy="38" r="4" fill="#ff6f7d" opacity=".6"/><circle cx="48" cy="38" r="4" fill="#ff6f7d" opacity=".6"/>',
+    strict:'<rect x="16" y="24" width="14" height="12" rx="2" fill="none" stroke="'+k+'" stroke-width="2"/><rect x="34" y="24" width="14" height="12" rx="2" fill="none" stroke="'+k+'" stroke-width="2"/>',
+    roast:'<path d="M22,9 Q26,-2 31,5 Q36,-4 42,9Z" fill="#ffc857"/>',
+    osce:'<rect x="42" y="42" width="16" height="18" rx="2" fill="#f6efdc" stroke="'+k+'" stroke-width="2"/><path d="M46,48h8M46,53h8" stroke="'+k+'" stroke-width="1.5"/>'}[p];
+  return '<svg class="face pop" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="8" width="48" height="48" rx="10" fill="'+c+'"/>'+
+    '<path d="'+brow+'" stroke="'+k+'" stroke-width="3" stroke-linecap="round"/><circle cx="23" cy="30" r="3.5" fill="'+k+'"/><circle cx="41" cy="30" r="3.5" fill="'+k+'"/>'+
+    '<path d="'+mouth+'" stroke="'+k+'" stroke-width="3" fill="'+(expr==="shock"?k:"none")+'" stroke-linecap="round"/>'+acc+'</svg>';
+}
+/* ============ STATE ============ */
+const S={sup:"mentor",mode:"guided",voice:false,i:0,res:{},run:{},last:null,raf:0};
+const $=(s,r)=>(r||document).querySelector(s);
+const stage=$("#stage"),supBox=$("#sup"),modal=$("#modal"),modalIn=$("#modalIn");
+function total(){return Object.values(S.res).reduce((a,r)=>a+r.pts,0)}
+function set(rule,pts,note){S.res[rule]={pts:Math.max(0,Math.round(pts)),note:note||""};$("#score").textContent=String(total()).padStart(3,"0")}
+function say(evt,fact,expr){
+  S.last={evt,fact,expr};
+  const line=L[evt][ORDER.indexOf(S.sup)],p=PERSONAS[S.sup];
+  supBox.innerHTML='<div class="say">'+face(S.sup,expr||"neutral")+'<div><b>'+p.name.toUpperCase()+" · "+p.tag.toUpperCase()+'</b><div class="line">'+line+'</div>'+(fact?'<div class="fact">'+fact+'</div>':"")+'</div></div>';
+  if(S.voice){try{speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(line))}catch(e){}}
+}
+function shake(){stage.classList.remove("shake");void stage.offsetWidth;stage.classList.add("shake")}
+/* ============ ILLUSTRATIONS ============ */
+const T45="M44,95 C40,70 46,48 64,46 C82,48 88,70 84,95 C82,130 74,165 66,186 C62,192 56,190 56,182 C52,150 46,120 44,95 Z";
+const T46="M114,95 C108,72 112,50 128,44 L150,58 L172,44 C196,40 210,62 206,95 C204,125 206,150 214,172 C218,184 208,190 200,180 C190,160 182,135 176,118 C170,108 152,108 146,118 C144,140 140,165 134,184 C130,192 120,190 120,180 C118,150 116,120 114,95 Z";
+const T47="M232,95 C226,70 232,48 256,44 C284,42 300,60 298,95 C296,125 296,150 290,176 C288,186 278,186 276,176 C272,150 268,128 262,118 C256,110 250,112 248,120 C246,145 246,165 242,180 C240,188 232,186 232,178 C232,150 234,120 232,95 Z";
+function jaw(mode,o){
+  o=o||{};const x=mode==="xray";
+  const bone=x?"#59636b":"#d6b481",bg=x?"#07090b":"#061a1c",tooth=x?"#d9dfe4":"#f6efdc",gap=x?"#1b2126":"#7a4b3a",car=x?"#1b2126":"#5b3a22";
+  let s='<svg viewBox="0 0 320 220" role="img" aria-label="'+(x?"Stylised radiograph of teeth 45, 46 and 47":"Cross-section of teeth 45, 46 and 47 in bone")+'">';
+  s+='<defs><clipPath id="below'+mode+'"><rect x="0" y="97" width="320" height="130"/></clipPath></defs>';
+  s+='<rect width="320" height="220" fill="'+bg+'"/><path d="M0,100 Q25,93 50,98 T100,98 T160,99 T220,98 T320,98 V220 H0Z" fill="'+bone+'"/>';
+  if(x){s+='<path d="M0,206 C80,198 240,214 320,202" stroke="#3a434a" stroke-width="10" fill="none"/><ellipse cx="127" cy="188" rx="11" ry="9" fill="#262d33"/>'}
+  else{s+='<path d="M0,100 Q25,93 50,98 T100,98 T160,99 T220,98 T320,98 V88 Q160,80 0,88Z" fill="#ff6f7d" opacity=".85"/>'}
+  s+='<path d="'+T45+'" fill="'+tooth+'" stroke="'+gap+'" stroke-width="3"/><path d="'+T47+'" fill="'+tooth+'" stroke="'+gap+'" stroke-width="3"/>';
+  if(o.state==="out"||o.state==="tip"){
+    s+='<path d="'+T46+'" fill="'+(x?"#0d1114":"#4a1a22")+'" clip-path="url(#below'+mode+')"/>';
+    if(o.state==="tip")s+='<path d="M203,160 C206,168 214,172 214,176 C216,186 208,190 200,180 C196,172 196,166 203,160Z" fill="'+tooth+'" stroke="#ff5a5a" stroke-width="2"/>';
+  }else{
+    s+='<g id="t46"><path d="'+T46+'" fill="'+tooth+'" stroke="'+gap+'" stroke-width="3"/>';
+    if(o.pdl)s+='<path id="pdl" d="'+T46+'" fill="none" stroke="#ff6f7d" stroke-width="5" stroke-dasharray="2 5" clip-path="url(#below'+mode+')"/>';
+    s+='<path d="M128,44 L150,58 L172,44 L178,62 L150,76 L122,62Z" fill="'+car+'"/>';
+    if(x)s+='<ellipse cx="160" cy="88" rx="24" ry="7" fill="#8d979e"/><path d="M146,96 C142,130 138,160 130,182 M176,96 C182,130 196,160 206,176" stroke="#8d979e" stroke-width="3" fill="none"/>';
+    s+='</g>';
+  }
+  if(o.marks){[["A",104,97],["B",82,66],["C",150,54]].forEach(m=>{s+='<circle cx="'+m[1]+'" cy="'+m[2]+'" r="11" fill="#ffc857" stroke="#061a1c" stroke-width="2"/><text x="'+m[1]+'" y="'+(m[2]+4)+'" text-anchor="middle" font-family="Chakra Petch,sans-serif" font-weight="700" font-size="12" fill="#061a1c">'+m[0]+'</text>'})}
+  s+='<g font-family="Chakra Petch,sans-serif" font-size="11" font-weight="700" fill="'+(x?"#aeb8bf":"#0a2a2e")+'" text-anchor="middle"><text x="64" y="'+(x?30:72)+'">45</text><text x="160" y="'+(x?30:34)+'" fill="'+(x?"#aeb8bf":"#f6efdc")+'">46</text><text x="266" y="'+(x?30:72)+'">47</text></g>';
+  return s+'</svg>';
+}
+function blView(){
+  return '<svg viewBox="0 0 160 170" role="img" aria-label="Tooth 46 seen from the front, between cheek side and tongue side"><rect width="160" height="170" fill="#061a1c"/>'+
+  '<path d="M0,74 Q26,62 52,66 C56,110 66,150 80,156 C94,150 104,110 108,66 Q134,62 160,74 V170 H0Z" fill="#d6b481"/>'+
+  '<path d="M0,74 Q26,62 52,66 L54,78 Q28,73 0,86Z M160,74 Q134,62 108,66 L106,78 Q132,73 160,86Z" fill="#ff6f7d"/>'+
+  '<g id="t46bl"><path d="M54,64 C48,40 54,22 80,20 C106,22 112,40 106,64 C102,105 94,140 80,150 C66,140 58,105 54,64Z" fill="#f6efdc" stroke="#7a4b3a" stroke-width="3"/><path d="M66,22 L80,32 L94,22 L96,34 L80,44 L64,34Z" fill="#5b3a22"/></g>'+
+  '<g font-family="Chakra Petch,sans-serif" font-weight="700" font-size="10" fill="#a5c4c0"><text x="6" y="16">CHEEK</text><text x="116" y="16">TONGUE</text></g></svg>';
+}
+const IC=(d)=>'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+d+'</svg>';
+const ICON={
+  elev:IC('<path d="M6 42 22 26" stroke-width="8"/><path d="M22 26 41 7" stroke-width="3"/>'),
+  scal:IC('<path d="M6 42 26 22" stroke-width="7"/><path d="M26 22 36 12Q43 8 40 17" stroke-width="2.5"/>'),
+  bur:IC('<path d="M6 40 30 16" stroke-width="9"/><path d="M30 16 39 11 37 21" stroke-width="4"/><path d="M38 20V30" stroke-width="1.5"/>'),
+  low:IC('<path d="M5 28H28M5 37H28" stroke-width="4"/><path d="M28 28Q37 28 37 43M28 37Q32 37 32 44" stroke-width="3"/>'),
+  upp:IC('<path d="M5 19 28 23M5 30 28 26" stroke-width="4"/><path d="M28 23 43 21M28 26 43 28" stroke-width="3"/>'),
+  bay:IC('<path d="M5 30H24M5 38 24 36" stroke-width="4"/><path d="M24 30 30 21H43M24 36 32 26H43" stroke-width="3"/>')
+};
+/* ============ SHARED INTERACTION HELPERS ============ */
+function frame(kick,title,body){stage.innerHTML='<p class="kick">'+kick+'</p><h2>'+title+'</h2>'+body;window.scrollTo(0,0)}
+function nextBtn(label,fn){const b=document.createElement("button");b.className="go";b.type="button";b.id="next";b.textContent=(label||"Continue")+" ▶";b.onclick=fn||(()=>go(S.i+1));stage.appendChild(b);return b}
+function ask(box,cfg){
+  let tries=0;
+  box.innerHTML='<div class="opts">'+cfg.opts.map((o,i)=>'<button type="button" class="opt" data-i="'+i+'">'+(o.icon||"")+'<span>'+o.t+'</span></button>').join("")+'</div>'+
+    (S.mode==="guided"&&cfg.hint?'<button type="button" class="ghost" id="hint">Show a hint</button>':"")+'<p class="why"></p>';
+  const why=$(".why",box),btns=[...box.querySelectorAll(".opt")];
+  const h=$("#hint",box);if(h)h.onclick=()=>{why.textContent="Hint: "+cfg.hint;h.remove()};
+  const finish=()=>{btns.forEach((b,i)=>{b.disabled=true;if(cfg.opts[i].ok)b.classList.add("ok")});if(h&&h.isConnected)h.remove();
+    const pts=tries===0?cfg.max:(S.mode==="guided"?cfg.max*(tries===1?.5:.25):0);
+    if(cfg.rule)set(cfg.rule,pts,tries?("Wrong first choice"+(tries>1?" ×"+tries:"")):"First time");
+    cfg.done&&cfg.done(tries)};
+  btns.forEach(b=>b.onclick=()=>{const o=cfg.opts[+b.dataset.i];
+    if(o.ok){say(cfg.goodEvt||"good",cfg.fact,"happy");why.textContent="";finish()}
+    else{tries++;b.classList.add("no");b.disabled=true;why.textContent=o.why||"";say(cfg.badEvt,o.why||cfg.fact,"stern");shake();if(S.mode!=="guided")finish()}});
+}
+function pick(box,cfg){
+  box.innerHTML=cfg.opts.map((o,i)=>'<label class="chk"><input type="checkbox" id="'+cfg.id+i+'"><span>'+o.t+'</span><em></em></label>').join("")+'<button type="button" class="go" id="confirm">Confirm ▶</button>';
+  $("#confirm",box).onclick=function(){const labs=[...box.querySelectorAll(".chk")];
+    const sel=labs.map((l,i)=>{const on=$("input",l).checked,o=cfg.opts[i];$("input",l).disabled=true;
+      if(on&&o.ok){l.classList.add("ok");$("em",l).textContent="GOOD"}
+      else if(on&&!o.ok){l.classList.add("no");$("em",l).textContent="HARMFUL"}
+      else if(!on&&o.ok){l.classList.add("miss");$("em",l).textContent="MISSED"}
+      return on});
+    this.remove();cfg.done(sel)};
+}
+/* ============ SCENES ============ */
+const PIPS=13;
+function hud(){
+  const on=S.i>=2;$("#hud").classList.toggle("on",on);supBox.classList.toggle("on",on);
+  $("#pips").innerHTML=Array.from({length:PIPS},(_,k)=>'<i class="'+(k<S.i-2?"d":k===S.i-2?"c":"")+'"></i>').join("");
+  $("#score").textContent=String(total()).padStart(3,"0");
+}
+function go(i){cancelAnimationFrame(S.raf);S.i=i;hud();SC[i]()}
+function best(){try{return +localStorage.getItem("da-best")||0}catch(e){return 0}}
+
+function title(){
+  const b=best();
+  frame("Simulation 001 · Oral surgery","",'<div class="hero"><h1>CAN YOU TAKE OUT TOOTH 46?</h1><p class="tagline">Practice like a student. Think like a specialist.</p>'+
+    '<figure class="fig float" style="width:100%">'+jaw("clin",{pdl:true})+'</figure>'+
+    '<p class="lead">One synthetic patient. Ten hands-on steps. One moment where the tooth stops moving and the next move is yours.</p></div>'+
+    '<button type="button" class="go" id="start">START ▶</button>'+
+    '<div class="row"><button type="button" class="ghost" id="cat">Curriculum map</button><button type="button" class="ghost" id="stat">Build status</button></div>'+
+    (b?'<p class="lab"><span>YOUR BEST</span><span>'+b+' / 100</span></p>':""));
+  $("h2",stage).remove();
+  $("#start").onclick=()=>go(1);$("#cat").onclick=catalogue;$("#stat").onclick=status;
+}
+function setup(){
+  frame("Before you scrub in","Pick your supervisor",'<div class="opts" id="sups"></div><h2 style="font-size:18px">Practice mode</h2>'+
+    '<div class="opts" id="modes"></div><label class="chk"><input type="checkbox" id="voice"'+(S.voice?" checked":"")+'><span>Read supervisor lines aloud, using this device\'s voice</span></label>'+
+    '<p class="lead" style="font-size:13px">Supervisors are fictional characters. All four apply the same demo rules. You can switch at any time.</p>');
+  const draw=()=>{
+    $("#sups").innerHTML=ORDER.map(k=>'<button type="button" class="opt'+(S.sup===k?" ok":"")+'" data-k="'+k+'">'+face(k,S.sup===k?"happy":"neutral")+'<span><strong>'+PERSONAS[k].tag+'</strong><br>'+PERSONAS[k].name+". "+PERSONAS[k].blurb+'</span></button>').join("");
+    $("#modes").innerHTML=[["guided","Guided","Hints, explanations and second tries. Wrong first choices cost points."],["free","Unguided","No hints. Your first choice is final."]].map(m=>'<button type="button" class="opt'+(S.mode===m[0]?" ok":"")+'" data-m="'+m[0]+'"><span><strong>'+m[1]+'</strong><br>'+m[2]+'</span></button>').join("");
+    stage.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{S.sup=b.dataset.k;draw()});
+    stage.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{S.mode=b.dataset.m;draw()});
+  };draw();
+  $("#voice").onchange=e=>S.voice=e.target.checked;
+  nextBtn("Meet the patient",()=>{S.res={};S.run={};go(2)});
+}
+function brief(){
+  const c=CASE;
+  frame("Case "+c.id,"Meet your patient",'<div class="panel"><dl class="facts"><dt>Patient</dt><dd>'+c.patient.label+", "+c.patient.age+", "+c.patient.sex+'</dd><dt>Complaint</dt><dd>'+c.complaint+'</dd><dt>History</dt><dd>'+c.history.join("<br>")+'</dd><dt>Findings</dt><dd>'+c.findings+'</dd><dt>Plan</dt><dd>Extraction of 46 under local anaesthetic. Consent signed.</dd></dl></div>'+
+    '<figure class="fig">'+jaw("xray")+'<figcaption>Stylised drawing in place of a periapical radiograph. '+c.radiograph+'</figcaption></figure>');
+  say("intro","Read the radiograph carefully. It matters later.","neutral");
+  nextBtn("Start the procedure");
+}
+function site(){
+  frame("Step 1 · Safety check","Tap the tooth you are about to remove",'<figure class="fig"><svg class="arch" viewBox="0 0 320 230" role="group" aria-label="Lower arch"></svg><figcaption>Lower arch, seen from the front. The patient\'s right is on your left.</figcaption></figure><p class="why"></p>');
+  const svg=$(".arch"),nums=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];let h='<text x="34" y="222" style="font-size:10px;fill:#a5c4c0">PATIENT RIGHT</text><text x="286" y="222" style="font-size:10px;fill:#a5c4c0">PATIENT LEFT</text>';
+  nums.forEach((n,i)=>{const t=(i-7.5)/7.5,x=160+t*138,y=28+(1-t*t)*160,u=n%10,r=u>=6?14:u>=4?11:9;
+    h+='<g tabindex="0" role="button" aria-label="Tooth '+n+'" data-n="'+n+'"><circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+r+'"/><text x="'+x.toFixed(1)+'" y="'+(y+3).toFixed(1)+'">'+n+'</text></g>'});
+  svg.innerHTML=h;let tries=0,done=false;
+  const fin=()=>{done=true;$('[data-n="46"]',svg).classList.add("ok");set("S1",tries===0?10:(S.mode==="guided"?Math.max(2,10-4*tries):0),tries?"Wrong tooth chosen ×"+tries:"First time");nextBtn()};
+  svg.querySelectorAll("g").forEach(g=>{const act=()=>{if(done)return;
+    if(g.dataset.n==="46"){say("good",FACT.S1,"happy");fin()}
+    else{tries++;g.classList.add("no");shake();const w="That is tooth "+g.dataset.n+". "+FACT.S1;$(".why").textContent=w;say("S1",w,"shock");if(S.mode!=="guided")fin()}};
+    g.onclick=act;g.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();act()}}});
+  say("good","Site check first. Every time.","neutral");supBox.querySelector(".line").textContent="Before anything sharp: which tooth?";
+}
+function la(){
+  frame("Step 2 · Local anaesthesia","How will you numb tooth 46?",'<div id="a"></div><div id="b"></div>');
+  ask($("#a"),{rule:"A1",max:6,badEvt:"A1",fact:FACT.A1,hint:"Lower molars sit in thick bone. Think of a nerve block, plus the cheek-side gum.",opts:[
+    {t:"Buccal infiltration next to 46 only",why:"In this demo rule set, infiltration alone is treated as unreliable for an adult lower molar extraction."},
+    {t:"Inferior alveolar nerve block, plus a long buccal injection",ok:1},
+    {t:"Posterior superior alveolar block",why:"That block is for upper molars."}],
+    done:()=>{$("#b").innerHTML='<h2 style="font-size:18px;margin:8px 0">Four minutes later, he says his lip feels funny.</h2><div id="b2"></div>';
+      ask($("#b2"),{rule:"A2",max:4,badEvt:"A2",fact:FACT.A2,hint:"What can you check objectively before picking up an instrument?",opts:[
+        {t:"Pick up the elevator and start",why:"A subjective report is not a test. Starting on a tooth that is not numb hurts him and loses his trust."},
+        {t:"Give a second full cartridge straight away, to be safe",why:"Test first. More anaesthetic without checking adds dose and tells you nothing."},
+        {t:"Confirm lip numbness, then probe the gum on both sides of 46",ok:1}],done:()=>nextBtn()})}});
+}
+function tray(){
+  frame("Step 3 · Instrument tray","Pick the instrument that loosens the tooth first",'<div id="a"></div><div id="b"></div>');
+  ask($("#a"),{rule:"I1",max:5,badEvt:"I1",fact:FACT.I1,hint:"You need a blade that slides between tooth and bone.",opts:[
+    {t:"Sickle scaler",icon:ICON.scal,why:"A scaler removes calculus. It is not built to take leverage."},
+    {t:"High-speed handpiece and bur",icon:ICON.bur,why:"A bur belongs to a surgical approach. A simple extraction starts by loosening."},
+    {t:"Straight elevator",icon:ICON.elev,ok:1}],
+    done:()=>{$("#b").innerHTML='<h2 style="font-size:18px;margin:8px 0">Now pick the forceps that deliver it</h2><div id="b2"></div>';
+      ask($("#b2"),{rule:"I2",max:5,badEvt:"I2",fact:FACT.I2,hint:"Lower forceps have beaks at a right angle to the handles.",opts:[
+        {t:"Lower molar forceps",icon:ICON.low,ok:1},
+        {t:"Upper molar forceps",icon:ICON.upp,why:"Upper forceps run nearly straight. They cannot seat properly on a lower molar."},
+        {t:"Upper root forceps, bayonet pattern",icon:ICON.bay,why:"Bayonet forceps reach upper roots at the back of the mouth."}],done:()=>nextBtn()})}});
+}
+function fulc(){
+  frame("Step 4 · Elevator","Where does the elevator go?",'<figure class="fig">'+jaw("clin",{pdl:true,marks:true})+'<figcaption>Side view. The dotted pink line is the periodontal ligament holding 46 in its socket.</figcaption></figure><div id="a"></div>');
+  ask($("#a"),{rule:"T1",max:10,badEvt:"T1",fact:FACT.T1,hint:"Bone can take the load. Teeth and decayed crowns cannot.",opts:[
+    {t:"B. Rest it on tooth 45 and lever against it",why:"Levering on a neighbour can loosen or damage a healthy tooth."},
+    {t:"A. Between 46 and the bone crest, blade facing 46, turning on the bone",ok:1},
+    {t:"C. Hook it into the decayed crown and lift",why:"The decayed crown is the weakest part of the tooth. It will break off."}],done:()=>nextBtn()});
+}
+function lux(){
+  frame("Step 5 · Loosen the tooth","Hold to press. Stay in the green.",'<figure class="fig" id="luxfig">'+jaw("clin",{pdl:true})+'</figure>'+
+    '<div class="lab"><span>FORCE</span><span>GREEN = CONTROLLED · RED = TOO MUCH</span></div><div class="gauge"><div class="zone"></div><div class="red"></div><div class="fill" id="ff"></div></div>'+
+    '<div class="lab"><span>LIGAMENT RELEASED</span><span id="pp">0%</span></div><div class="bar"><i id="pb"></i></div>'+
+    '<button type="button" class="hold" id="hold">HOLD TO APPLY PRESSURE</button><p class="lead" style="font-size:13px">Press and release in pulses to keep the force steady. Tapping a screen does not measure real hand skill.</p>');
+  say("good",FACT.T2,"neutral");supBox.querySelector(".line").textContent="Gentle, steady pressure. Watch the ligament let go.";
+  let f=0,p=0,hold=false,over=false,strikes=0,last=performance.now();
+  const btn=$("#hold"),ff=$("#ff"),pb=$("#pb"),pp=$("#pp"),pdl=$("#pdl"),t=$("#t46");
+  const dn=e=>{e.preventDefault();hold=true;btn.classList.add("dn")},up=()=>{hold=false;btn.classList.remove("dn")};
+  btn.onpointerdown=dn;btn.onpointerup=up;btn.onpointerleave=up;btn.onpointercancel=up;
+  btn.onkeydown=e=>{if(e.key===" "||e.key==="Enter"){e.preventDefault();hold=true}};btn.onkeyup=up;btn.oncontextmenu=e=>e.preventDefault();
+  (function tick(now){const dt=Math.min(.05,(now-last)/1000);last=now;
+    f=Math.max(0,Math.min(100,f+(hold?58:-75)*dt));
+    if(f>=45&&f<=72)p=Math.min(100,p+24*dt);
+    if(f>86&&!over){over=true;strikes++;say("T2",FACT.T2,"shock");shake()}
+    if(f<72)over=false;
+    ff.style.width=f+"%";pb.style.width=p+"%";pp.textContent=Math.round(p)+"%";pdl.style.opacity=1-p/100;
+    t.setAttribute("transform","translate("+(Math.sin(now/60)*f/45).toFixed(2)+","+(-p/40).toFixed(2)+")");
+    if(p>=100){btn.disabled=true;btn.textContent="TOOTH IS MOBILE";set("T2",10-3*strikes,strikes?"Excessive force ×"+strikes:"No excessive force");
+      if(!strikes)say("good",FACT.T2,"happy");nextBtn()}
+    else S.raf=requestAnimationFrame(tick)})(last);
+}
+function grip(){
+  frame("Step 6 · Forceps on","What is your other hand doing?",'<div id="a"></div>');
+  ask($("#a"),{rule:"S2",max:8,badEvt:"S2",fact:FACT.S2,hint:"Your working hand will push down on the lower jaw. Something has to push back.",opts:[
+    {t:"Resting on the patient's chest",why:"The jaw is left unsupported against your force."},
+    {t:"Supporting the lower jaw and guarding the cheek and tongue",ok:1},
+    {t:"Holding the patient's forehead still",why:"The forehead is not what moves. The lower jaw is."}],done:()=>nextBtn("Apply the forceps")});
+}
+function forceps(){
+  frame("Step 7 · Deliver the tooth","Hold each side until the bar fills",'<figure class="fig" style="max-width:300px;align-self:center;width:100%">'+blView()+'</figure>'+
+    '<div class="lab"><span>TOOTH MOBILITY</span><span id="pp">0%</span></div><div class="bar"><i id="pb"></i></div>'+
+    '<div class="row"><button type="button" class="hold" data-s="B">CHEEK SIDE<span class="ring"></span></button><button type="button" class="hold" data-s="L">TONGUE SIDE<span class="ring"></span></button></div><p class="why"></p>');
+  say("good",FACT.T3,"neutral");supBox.querySelector(".line").textContent="Seat the beaks low on the roots. Slow pressure, one side then the other.";
+  let mob=0,lastS=null,jerks=0,timer=0,armed=null;const t=$("#t46bl"),why=$(".why");
+  stage.querySelectorAll(".hold").forEach(b=>{const s=b.dataset.s;
+    const dn=e=>{e.preventDefault();if(mob>=60||armed)return;armed=s;b.classList.add("dn");t.style.transform="rotate("+(s==="B"?-9:9)+"deg)";
+      timer=setTimeout(()=>{armed="done";b.classList.remove("dn");
+        if(s===lastS){why.textContent="Same side twice. Alternate cheek side and tongue side."}
+        else{lastS=s;mob+=12;why.textContent="";$("#pb").style.width=mob+"%";$("#pp").textContent=mob+"%"}
+        if(mob>=60){stage.querySelectorAll(".hold").forEach(x=>x.disabled=true);set("T3",7-2*jerks,jerks?"Jerky movement ×"+jerks:"Controlled throughout");t.style.transform="none";setTimeout(()=>go(S.i+1),500)}},650)};
+    const up=()=>{if(armed===s){clearTimeout(timer);b.classList.remove("dn");jerks++;why.textContent="Released too early. Hold until the bar fills.";say("T3",FACT.T3,"stern");shake()}
+      if(armed===s||armed==="done"){armed=null;if(mob<60)t.style.transform="none"}};
+    b.onpointerdown=dn;b.onpointerup=up;b.onpointerleave=up;b.onpointercancel=up;b.oncontextmenu=e=>e.preventDefault();
+    b.onkeydown=e=>{if((e.key===" "||e.key==="Enter")&&!e.repeat)dn(e)};b.onkeyup=up});
+}
+/* ---- the clinical decision ---- */
+const DEC={
+  safe:{pts:20,t:"Stop. Re-read the radiograph, loosen again, and plan to divide the tooth with senior support"},
+  force:{pts:0,t:"Squeeze harder and push through"},
+  twist:{pts:0,t:"Switch to a strong twisting movement"},
+  abandon:{pts:6,t:"Stop, and send him home for today"}
+};
+function decision(){
+  frame("Step 8 · Clinical decision","The tooth stops moving",'<div class="panel"><p>Five good movements in, 46 locks. The broken-down crown starts to flex between the beaks, and the roots are not following.</p><p><strong>What do you do?</strong></p></div><div class="opts" id="a"></div>'+
+    (S.mode==="guided"?'<button type="button" class="ghost" id="rx">Look at the radiograph again</button><div id="rxv"></div>':""));
+  say("good","","neutral");supBox.querySelector(".line").textContent=S.sup==="osce"?"Proceed.":"This is the moment that counts. Think before you move.";
+  $("#a").innerHTML=["force","safe","twist","abandon"].map(k=>'<button type="button" class="opt" data-k="'+k+'"><span>'+DEC[k].t+'</span></button>').join("");
+  const rx=$("#rx");if(rx)rx.onclick=()=>{$("#rxv").innerHTML='<figure class="fig">'+jaw("xray")+'<figcaption>'+CASE.radiograph+'</figcaption></figure>';rx.remove()};
+  stage.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{const k=b.dataset.k,R=S.run;
+    R.choice=k;if(!R.first){R.first=k;set("D1",DEC[k].pts,DEC[k].t)}
+    R.fracture=(k==="force"||k==="twist")&&Math.random()<.65;go(S.i+1)});
+}
+/* ============ PATIENT CONSEQUENCE ENGINE ============ */
+function outcome(){
+  const R=S.run,k=R.choice;let fig,txt,chip="";
+  if(k==="safe"){fig=jaw("clin",{state:"out"});txt="Your supervisor joins you. 46 is divided between its two roots, and each root comes out along its own curve. Both root tips are complete.";say("safe",FACT.D1,"happy")}
+  else if(k==="abandon"){fig=jaw("clin",{state:"out"});txt="Your supervisor stops him at the door: he was about to leave with a loose, painful tooth and no plan. A senior colleague divides the tooth and removes both roots while you assist.";say("abandon",FACT.D1,"stern")}
+  else if(R.fracture){fig=jaw("clin",{state:"tip"});txt="A crack. The crown and mesial root come away, and the curved tip of the distal root stays in the socket. Your supervisor takes over and retrieves it through a small surgical approach. The visit runs 40 minutes longer.";chip='<span class="chip hit">Possible outcome · happened this run</span>';say(k,FACT.D1,"shock");setTimeout(()=>S.i===11&&say("fracture",FACT.D1,"stern"),2600);shake()}
+  else{fig=jaw("clin",{state:"out"});txt="The tooth comes out whole, both roots complete. A root fracture was a real possibility with that choice. It did not happen this time.";chip='<span class="chip miss">Possible outcome · did not happen this run</span>';say("lucky",FACT.D1,"stern")}
+  frame("During the procedure",k==="safe"?"Planned, and uneventful":k==="abandon"?"Caught at the door":R.fracture?"Root fracture":"Out in one piece",'<figure class="fig">'+fig+'</figure><div class="panel"><p>'+txt+'</p>'+chip+'<p class="lead" style="font-size:13px">Your decision is scored on the choice, not on the luck. Chosen: '+DEC[R.first].t+'.</p></div>'+
+    '<div class="panel"><p class="kick">Level 2 preview · Ask the specialist</p><p style="font-size:13px" class="lead">Dr. Ada Molar is a fictional educator persona. These are scripted demo answers. No live AI is connected and nothing here is clinically reviewed.</p><div class="row"><button type="button" class="ghost" data-q="0">Ask why</button><button type="button" class="ghost" data-q="1">What if?</button><button type="button" class="ghost" data-q="2">Another approach</button></div><p id="ans" style="font-size:14px"></p></div>');
+  const A=["Why stop? A tooth that was moving and then locks is usually held by the shape of its roots or by the bone. More force goes to the weakest part first. Here that is the decayed crown or the curved distal root.",
+    "If you push on, possible outcomes include the tooth coming out whole, the crown breaking off, or a root tip left behind that needs a surgical approach. None of them is guaranteed.",
+    "Planned sectioning: the tooth is divided through the point where the roots split, so each root leaves along its own path. That is a surgical step for a trained operator. The student-level decision is to stop and bring in a senior."];
+  stage.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>$("#ans").textContent=A[+b.dataset.q]);
+  const rw=document.createElement("button");rw.className="ghost";rw.type="button";rw.textContent="Rewind and choose again (your first choice stays on the report)";rw.onclick=()=>{R.rewound=true;go(10)};stage.appendChild(rw);
+  nextBtn("Finish the visit");
+}
+function closeout(){
+  frame("Step 9 · Before he leaves the chair","Tick everything you would do",'<div class="opts" id="a"></div>');
+  const opts=[{t:"Inspect the removed tooth: are the roots and tips complete?",ok:1},{t:"Probe deep into the socket with the elevator to feel for the nerve"},{t:"Have him bite on gauze, then confirm the bleeding has stopped",ok:1,key:"haem"},{t:"Discharge him now. It will stop on the way home"},{t:"Check the socket and gently squeeze its walls back together",ok:1}];
+  pick($("#a"),{id:"c",opts,done:sel=>{let good=0,bad=0;opts.forEach((o,i)=>{if(sel[i])o.ok?good++:bad++});
+    S.run.haem=sel[2]&&!sel[3];set("C1",5*(good-bad)/3,good+" of 3 checks"+(bad?", "+bad+" harmful":""));
+    say(good===3&&!bad?"C1good":"C1",FACT.C1,good===3&&!bad?"happy":"stern");nextBtn()}});
+}
+function care(){
+  frame("Step 10 · Aftercare advice","What do you tell him? Tick all that apply",'<div class="opts" id="a"></div>');
+  const opts=[{t:"Bite firmly on the gauze for 20 to 30 minutes",ok:1},{t:"Rinse hard with mouthwash as soon as you get home"},{t:"No vigorous rinsing or spitting for the first 24 hours",ok:1,key:1},{t:"Avoid smoking for as long as you can, at least 48 hours",ok:1,key:1},{t:"Drink through a straw to keep fluids off the socket"},{t:"Soft food, chew on the other side, nothing hot while numb",ok:1},{t:"Put an aspirin tablet on the socket if it hurts"},{t:"Come back if bleeding will not stop with pressure, or pain and swelling get worse",ok:1}];
+  pick($("#a"),{id:"k",opts,done:sel=>{let good=0,bad=0,missKey=0;opts.forEach((o,i)=>{if(sel[i])o.ok?good++:bad++;else if(o.key)missKey++});
+    S.run.missKey=missKey;S.run.harm=bad;set("C2",2*good-2*bad,good+" of 5 given"+(bad?", "+bad+" harmful":""));
+    say(good===5&&!bad?"C2good":"C2",FACT.C2,good===5&&!bad?"happy":"stern");nextBtn("See what happens next")}});
+}
+function odds(){const R=S.run;return{dry:Math.min(.85,.08+.22*R.missKey+.18*R.harm+(R.fracture?.1:0)),bleed:R.haem?.05:.5}}
+function timeline(){
+  const R=S.run;if(R.dry===undefined){const o=odds();R.dry=Math.random()<o.dry;R.bleed=Math.random()<o.bleed}
+  const hit='<span class="chip hit">Possible outcome · happened this run</span>',miss='<span class="chip miss">Possible outcome · did not happen this run</span>';
+  const N=[
+    {w:"SAME EVENING",t:R.bleed?"He phones two hours later. The socket is oozing. He is talked through firm pressure on fresh gauze and it stops.":"He leaves with a stable clot. No calls tonight.",c:R.bleed?hit:(R.haem?"":miss),say:R.bleed?"bleed":null},
+    {w:"DAY 3",ret:1},
+    {w:"WEEK 3",t:R.fracture?"Healing is slower after the surgical retrieval. Still tender on chewing, and improving.":R.dry?"The socket has filled in after the dry socket. His pain settled about a week after the dressing.":"The gum has closed over the socket. No complaints."},
+    {w:"MONTH 3",t:"The socket has healed. He asks what his options are for the gap. That is a new case, in prosthodontics."}];
+  frame("Patient follow-up","What happened to your patient",'<ol class="tl" id="tl"></ol>');
+  const tl=$("#tl");let n=0;
+  const add=()=>{const d=N[n++],li=document.createElement("li");tl.appendChild(li);
+    if(d.ret){
+      if(R.dry){li.innerHTML='<span class="when">'+d.w+'</span><span class="ret">▶ PATIENT RETURNS</span><p>Throbbing pain that began on day 2, and a bad taste. The socket looks empty, with bare bone showing. No pus, no fever, no swelling.</p>'+hit+'<p><strong>This looks like a dry socket. What do you do?</strong></p><div id="r"></div>';
+        say("dry","Demo rule EXT-R1: a dry socket is a lost clot, treated here as a healing problem.","shock");
+        ask($("#r"),{badEvt:"ret",goodEvt:"retGood",max:0,fact:"Demo rule EXT-R1: gentle irrigation, a soothing dressing, pain relief and review.",hint:"The clot is gone and the bone is exposed. Think comfort and protection.",opts:[
+          {t:"Prescribe antibiotics and send him home",why:"In this demo rule set a dry socket is not an infection, so antibiotics alone do not treat it."},
+          {t:"Scrape the socket hard to make it bleed again",why:"In this demo rule set vigorous scraping adds trauma and pain."},
+          {t:"Gently irrigate, place a soothing dressing, review his pain relief, reassure and review",ok:1}],
+          done:tries=>{R.ret=tries===0;more()}});
+      }else{li.innerHTML='<span class="when">'+d.w+'</span><span class="ret">▶ PATIENT RETURNS</span><p>A routine review. The clot is in place and the gum is closing. He is comfortable.</p><span class="chip miss">Dry socket was possible · did not happen this run</span>';say("healed","","happy");more()}
+    }else{li.innerHTML='<span class="when">'+d.w+'</span><p>'+d.t+'</p>'+(d.c||"");if(d.say)say(d.say,FACT.C1,"stern");more()}
+    li.scrollIntoView({block:"nearest",behavior:"smooth"})};
+  const more=()=>{const old=$("#next");if(old)old.remove();n<N.length?nextBtn("Skip ahead in time",add):nextBtn("Learning report")};
+  const first=document.createElement("li");first.innerHTML='<span class="when">DURING THE PROCEDURE</span><p>'+(R.choice==="safe"?"Planned sectioning with senior support. Uneventful.":R.choice==="abandon"?"Extraction completed by a senior after you stopped without a plan.":R.fracture?"Root fracture. Root tip retrieved surgically by your supervisor.":"Tooth delivered whole after continuing against resistance.")+'</p>';tl.appendChild(first);
+  more();
+}
+/* ============ LEARNING ANALYTICS ENGINE ============ */
+function report(){
+  const R=S.run,sc=total(),g=sc>=90?"S":sc>=75?"A":sc>=55?"B":"C",xp=sc*10+(R.ret?150:0);
+  try{if(sc>best())localStorage.setItem("da-best",sc)}catch(e){}
+  const doms={};Object.keys(RULES).forEach(k=>{const r=RULES[k],d=doms[r.dom]=doms[r.dom]||{p:0,m:0};d.p+=(S.res[k]||{pts:0}).pts;d.m+=r.max});
+  const flags=Object.keys(RULES).filter(k=>RULES[k].safety&&(S.res[k]||{pts:0}).pts<RULES[k].max);
+  const share="Dental Arcade · Simple Extraction demo\nGrade "+g+" · "+sc+"/100 · "+xp+" XP\nSupervisor: "+PERSONAS[S.sup].tag+" · "+(S.mode==="guided"?"Guided":"Unguided")+"\nResistance decision: "+(R.first==="safe"?"stopped and reassessed":"needs another go")+"\nDemo content, not clinically approved.";
+  frame("Learning report","Simple extraction, tooth 46",'<div class="panel" style="flex-direction:row;align-items:center;gap:16px"><div class="grade">'+g+'</div><div><p style="font:400 14px var(--display);color:var(--dentine)">'+sc+' / 100</p><p class="lead">'+xp+' XP'+(R.ret?" · includes 150 for the return visit":"")+'</p><p class="lead" style="font-size:13px">'+PERSONAS[S.sup].tag+" · "+(S.mode==="guided"?"Guided":"Unguided")+(R.rewound?" · decision rewound":"")+'</p></div></div>'+
+    '<div class="panel">'+Object.keys(doms).map(d=>'<div class="dom"><span>'+d+'</span><div class="bar"><i style="width:'+(100*doms[d].p/doms[d].m)+'%"></i></div><span>'+doms[d].p+"/"+doms[d].m+'</span></div>').join("")+'</div>'+
+    '<div class="panel"><p class="kick">Safety-critical steps to repeat</p>'+(flags.length?'<ul style="margin:0;padding-left:18px">'+flags.map(k=>'<li><strong>'+RULES[k].label+".</strong> "+FACT[k]+'</li>').join("")+'</ul>':'<p>None. Every safety-critical step was right first time.</p>')+'</div>'+
+    '<div class="panel"><p class="kick">Every scored step</p><table><thead><tr><th>Rule</th><th>Step</th><th class="n">Pts</th></tr></thead><tbody>'+Object.keys(RULES).map(k=>{const r=S.res[k]||{pts:0,note:"Not reached"};return '<tr><td>EXT-'+k+'</td><td>'+RULES[k].label+'<br><span class="lead">'+r.note+'</span></td><td class="n">'+r.pts+"/"+RULES[k].max+'</td></tr>'}).join("")+'</tbody></table></div>'+
+    '<div class="panel"><p class="kick">What happened to the patient</p><p>'+(R.fracture?"Root fracture, retrieved surgically. ":"No fracture. ")+(R.bleed?"Bleeding at home, settled with pressure. ":"No bleeding at home. ")+(R.dry?"Returned on day 3 with a dry socket"+(R.ret?", managed correctly first time.":", management needed a second try."):"Routine review on day 3.")+'</p><p class="lead" style="font-size:13px">Complications here are rolled from game odds that rise with risky choices. They are not clinical statistics, and a mistake does not always cause harm.</p></div>'+
+    '<div class="panel"><p class="kick">Share your result</p><textarea id="sh" rows="5" readonly aria-label="Shareable result">'+share+'</textarea><button type="button" class="go alt" id="copy">COPY RESULT</button><p class="lead" style="font-size:13px">No patient details are included.</p></div>'+
+    '<p class="lead" style="font-size:13px">This score reflects choices in a tap-based demo. It does not assess real surgical skill, and the rules have not been reviewed by a clinician.</p>'+
+    '<div class="row"><button type="button" class="go" id="again">PLAY AGAIN ▶</button><button type="button" class="ghost" id="stat">Build status</button></div>');
+  say(sc>=85?"endHigh":sc>=55?"endMid":"endLow","",sc>=85?"happy":sc>=55?"neutral":"stern");
+  $("#copy").onclick=function(){const done=()=>this.textContent="COPIED";try{navigator.clipboard.writeText(share).then(done,()=>{$("#sh").select()})}catch(e){$("#sh").select()}};
+  $("#again").onclick=()=>go(1);$("#stat").onclick=status;
+}
+const SC=[title,setup,brief,site,la,tray,fulc,lux,grip,forceps,decision,outcome,closeout,care,timeline,report];
+/* ============ OVERLAYS ============ */
+function sheet(html){modalIn.innerHTML=html+'<button type="button" class="go" id="close">CLOSE</button>';modal.classList.add("on");$("#close").onclick=()=>modal.classList.remove("on");modal.scrollTop=0}
+$("#supBtn").onclick=()=>{
+  sheet('<p class="kick">Switch at any time</p><h2>Supervisor</h2><div class="opts">'+ORDER.map(k=>'<button type="button" class="opt'+(S.sup===k?" ok":"")+'" data-k="'+k+'">'+face(k,"neutral")+'<span><strong>'+PERSONAS[k].tag+'</strong><br>'+PERSONAS[k].blurb+'</span></button>').join("")+'</div><label class="chk"><input type="checkbox" id="v2"'+(S.voice?" checked":"")+'><span>Read lines aloud</span></label>');
+  modalIn.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{S.sup=b.dataset.k;modal.classList.remove("on");if(S.last)say(S.last.evt,S.last.fact,S.last.expr)});
+  $("#v2").onchange=e=>{S.voice=e.target.checked;if(!S.voice){try{speechSynthesis.cancel()}catch(x){}}};
+};
+const CAT={
+"Oral and maxillofacial surgery":"Simple extraction|Surgical extraction|Impacted third molars|Impacted canine exposure|Supernumerary teeth|Retained roots|Flap design|Bone removal concepts|Tooth sectioning|Suturing techniques|Wound closure|Biopsy|Frenectomy|Cyst management|Odontogenic infections|Fascial space infections|Mandibular fractures|Midface fractures|Facial trauma assessment|ORIF|Plate and screw fixation planning|Arch bars|Maxillomandibular fixation|Orthognathic surgery|Le Fort I|BSSO|Genioplasty|Implant surgery|TMJ disorders|Reconstructive surgery",
+"Endodontics":"Pulp diagnosis|Periapical diagnosis|Access cavity|Canal location|Working length determination|Cleaning and shaping|Irrigation|Obturation|Retreatment|Calcified canals|MB2 identification|Instrument separation|Perforation|Ledge formation|Apical transportation|Endodontic microsurgery|Apicoectomy|Dental trauma|Apexification|Regenerative endodontics",
+"Restorative dentistry":"Caries assessment|Class I to VI restorations|Composite restoration|Amalgam restoration principles|Matrix systems|Rubber dam isolation|Adhesive dentistry|Deep caries management|Pulp preservation|Anterior aesthetic restoration|Posterior restoration|Direct veneers|Inlays|Onlays|Tooth wear|Restoration failure|CAD/CAM restorative workflows",
+"Prosthodontics":"Complete dentures|Partial dentures|RPD surveying|RPD design|Crown preparation|Bridge preparation|Impression techniques|Jaw relation|Occlusion|Vertical dimension|Try-in procedures|Denture insertion|Implant prosthodontics|Full mouth rehabilitation|Digital prosthodontics|Prosthetic complications",
+"Periodontology":"Periodontal examination|Periodontal charting|Staging and grading|Scaling|Root surface debridement|Periodontal maintenance|Flap surgery|Regenerative periodontal procedures|Mucogingival surgery|Gingival recession|Crown lengthening|Peri-implant diseases|Periodontal complications",
+"Paediatric dentistry":"Behaviour management|Caries prevention|Fluoride application|Fissure sealants|Primary tooth restoration|Stainless steel crowns|Pulpotomy|Pulpectomy|Space maintainers|Early childhood caries|Paediatric dental trauma|Special care considerations",
+"Orthodontics":"Orthodontic diagnosis|Cephalometric analysis|Malocclusion assessment|Treatment planning|Fixed appliances|Bracket positioning|Archwire concepts|Removable appliances|Clear aligners|Impacted canine management|Anchorage|Temporary anchorage devices|Orthodontic complications|Retention and relapse",
+"Oral medicine and pathology":"Oral lesion recognition|Differential diagnosis|Oral potentially malignant disorders|Oral cancer warning signs|Salivary gland disorders|Orofacial pain|Temporomandibular disorders|Biopsy decisions|Pathology referral",
+"Oral and maxillofacial radiology":"Periapical radiographs|Bitewing radiographs|Panoramic radiographs|CBCT interpretation|Anatomical landmark identification|Pathology recognition|Radiographic errors|Radiation protection",
+"Special care and emergencies":"Medically compromised patients|Diabetes|Anticoagulant considerations|Pregnancy|Disability and accessibility|Dental anxiety|Syncope|Anaphylaxis|Hypoglycaemia|Basic life support|Emergency recognition and escalation",
+"Cross-specialty":"Local anaesthesia|Pharmacology|Infection control|Dental materials|Consent|Ethics|Patient communication"};
+function catalogue(){let n=0;const body=Object.keys(CAT).map(k=>{const a=CAT[k].split("|");n+=a.length;return '<div class="panel cat"><h3>'+k+' <span class="lead" style="font-weight:500">· '+a.length+'</span></h3><div class="tags">'+a.map(p=>'<span'+(p==="Simple extraction"?' class="live">'+p+" · playable demo":">"+p)+'</span>').join("")+'</div></div>'}).join("");
+  sheet('<p class="kick">Specialty → procedure</p><h2>Curriculum map</h2><p class="lead">'+n+' procedures listed across '+Object.keys(CAT).length+' areas. One is a playable demo. Every other entry is planned and has no content yet. Nothing is clinically approved.</p>'+body)}
+function status(){const rows=[
+  ["Level 1 guided practice, simple extraction","Playable demo","live"],["Clinical decision with deterministic rules","Demo, rules unreviewed","live"],["Four supervisor personalities","Working: text, expressions, device voice","live"],["Patient consequences, timeline, Patient Returns","Demo, one case","live"],["Learning report with shareable result","Working","live"],["Guided and unguided modes","Working","live"],
+  ["Level 2 AI Specialist","Scripted preview only. No AI model or source retrieval","plan"],["Curriculum catalogue","Listed. Content not written","plan"],["Accounts, database, saved progress","Not built. Best score is kept on this device only","plan"],["Clinical review admin panel","Not built","plan"],["Admin dashboard and case authoring","Not built","plan"],["Subscriptions, payments, referrals","Not built","plan"],["3D procedure modules","Not built","plan"],["First Day as a Dentist shift mode","Not built","plan"],["Next.js and Supabase codebase","Not built. This demo is a single web page","plan"],["Automated test suite","Not built","plan"]];
+  sheet('<p class="kick">Honest status</p><h2>What is built</h2><table><tbody>'+rows.map(r=>'<tr><td>'+r[0]+'</td><td><span class="chip '+r[2]+'">'+r[1]+'</span></td></tr>').join("")+'</tbody></table>')}
+/* ============ BOOT ============ */
+const hot=window.claude&&window.claude.hot;
+function boot(d){if(d&&d.sup&&PERSONAS[d.sup])S.sup=d.sup;if(d&&d.mode)S.mode=d.mode;go(0)}
+if(hot&&hot.snapshot)hot.snapshot(()=>({sup:S.sup,mode:S.mode}));
+if(hot&&hot.ready)hot.ready(boot);else boot((hot&&hot.data)||{});
+</script>
+</body>
+</html>
