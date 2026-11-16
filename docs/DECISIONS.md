@@ -22,9 +22,10 @@ Decisions made without asking, as the brief requested. Each can be revisited.
 10. **Next.js 16 with Cache Components.** Pages are static shells; anything that reads the session
     streams in behind Suspense. Session refresh runs in `src/proxy.ts` (formerly middleware).
 11. **Fonts are bundled** (`@fontsource`) so builds do not depend on a font CDN.
-12. **Phase 1 serves the demo as a standalone HTML file** under `public/demo/`. Phase 2 rebuilds it
-    as a React player driven by the engines. Phaser 3 and React Three Fiber are added then, when a
-    module needs them, to avoid shipping unused weight.
+12. **The extraction game is plain TypeScript and SVG** (`src/game`), mounted by a small React
+    wrapper. The same code bundles into the standalone demo with esbuild, so there is one source.
+    Every step is a hands-on action (drag, tap, hold, swipe) rather than a list of answers.
+    Phaser 3 and React Three Fiber are deferred until a module needs physics or 3D.
 13. **Currency defaults to MYR** in the pricing table. Prices are rows, editable by admins.
 14. **Migration is tested on PGlite**, an in-memory Postgres, with a stub of Supabase's `auth`
     schema. That checks SQL validity and triggers. It does not test row-level security policies.
@@ -34,4 +35,6 @@ Decisions made without asking, as the brief requested. Each can be revisited.
 - Row-level security policies are written and enabled but not yet tested against a live Supabase project.
 - Sign-in and sign-up have not been run end to end.
 - No Playwright suite yet; pages were smoke-checked once in a headless browser.
-- The demo game and `ext-001.ts` hold the same content in two places until Phase 2.
+- The game's scenes are hand-built for this one case. A second procedure will show which parts
+  to generalise into reusable scene modules.
+- Touch gestures were tested with a mouse in a headless browser, not yet on a real phone.

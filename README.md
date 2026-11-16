@@ -15,18 +15,19 @@ Phase 1 of 7 is complete. See [docs/STATUS.md](docs/STATUS.md) for every module,
 
 | Works now | Not built yet |
 | --- | --- |
-| App shell, curriculum map (157 procedures, 11 areas) | In-app engine-driven player (Phase 2–3) |
+| App shell, curriculum map (157 procedures, 11 areas) | Saving game progress to accounts (Phase 5) |
 | Eight engine modules with unit tests | AI Specialist with source retrieval (Phase 4) |
 | Database schema with row-level security | Review and admin screens (Phase 4) |
 | Sign-in and sign-up code (needs Supabase keys) | Payments, referral rewards, saved progress (Phase 5) |
-| Standalone playable Simple Extraction demo | 3D modules, more specialties (Phase 6) |
+| Hands-on Simple Extraction game, in the app and standalone | 3D modules, more specialties (Phase 6) |
 
 ## Run it
 
 ```bash
 npm install
 npm run dev        # http://localhost:3000
-npm test           # 40 unit and database tests
+npm test           # unit and database tests
+npm run demo:build # rebuild public/demo/simple-extraction.html from src/game
 npm run typecheck
 npm run build
 ```
@@ -64,7 +65,8 @@ src/content/        Curriculum catalogue and build status.
 src/app/            Next.js App Router pages.
 src/lib/supabase/   Server client and session helpers.
 supabase/           Migration and generated seed.
-public/demo/        Standalone playable demo (single HTML file).
+src/game/           The hands-on extraction game. Framework-free; drives the engines.
+public/demo/        Standalone build of the game (generated, single HTML file).
 tests/              Vitest: engines, catalogue, and the migration on in-memory Postgres.
 docs/               Status and technical decisions.
 ```

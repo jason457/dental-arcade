@@ -17,9 +17,9 @@ Mirrors `src/content/status.ts`, which the app shows at `/status`.
 | 1 | Clinical Review Engine | Foundation | Lifecycle rules in code and in database triggers. No admin screens. |
 | 1 | Learning Analytics Engine | Working | Report, grade, XP and share text. Nothing is saved to accounts yet. |
 | 1 | Commerce and Referral Engine | Foundation | Entitlement and referral rules, unit tested. No payment provider. |
-| 1 | Procedure Simulation Engine | Foundation | Module registry. Six 2D modules exist only inside the standalone demo. |
-| 2 | Level 1 Simple Extraction | Demo only | Playable standalone demo. Not yet rebuilt on the engines inside this app. |
-| 3 | Clinical decision, supervisors, consequences in-app | Demo only | All present in the standalone demo. In-app version is Phase 3. |
+| 1 | Procedure Simulation Engine | Working | Module registry plus hands-on 2D interactions: drag instruments onto the patient, tap the arch, force gauge, drag-to-rock forceps, swipe advice cards. |
+| 2 | Level 1 Simple Extraction | Demo only | Hands-on game inside the app, driven by the engines. Same code builds the standalone demo. Progress is not saved to accounts yet. |
+| 3 | Clinical decision, supervisors, consequences in-app | Demo only | Playable in the app with animated outcomes and an interactive Patient Returns visit. One case only. |
 | 4 | Level 2 AI Specialist with source retrieval | Not built | Demo has three scripted answers only. |
 | 4 | Clinical Review Admin Panel | Not built |  |
 | 4 | Admin dashboard and case authoring | Not built |  |
