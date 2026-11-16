@@ -38,3 +38,4 @@ Decisions made without asking, as the brief requested. Each can be revisited.
 - The game's scenes are hand-built for this one case. A second procedure will show which parts
   to generalise into reusable scene modules.
 - Touch gestures were tested with a mouse in a headless browser, not yet on a real phone.
+- Music and sound are synthesised live (Web Audio). Checked that notes are produced; not yet listened to on a phone speaker.

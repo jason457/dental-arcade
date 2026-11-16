@@ -15,6 +15,7 @@ import { PERSONAS, SUPERVISOR_ORDER, closingEvent, react, type Expression, type 
 import type { PracticeMode, RuleResult, SupervisorId } from "../engines/types";
 import * as art from "./art";
 import { CSS } from "./styles";
+import { Chiptune, type Track } from "./audio";
 
 interface Zone { id: string; x: number; y: number; r: number }
 interface ToolDef { id: string; label: string; instant?: boolean }
@@ -49,11 +50,12 @@ export function mountExtraction(root: HTMLElement): () => void {
     raf: 0, timers: [] as number[],
   };
 
+  const audio = new Chiptune();
   if (!document.getElementById("da-css")) {
     const st = document.createElement("style"); st.id = "da-css"; st.textContent = CSS; document.head.appendChild(st);
   }
   root.innerHTML = `<div class="da">
-    <div class="da-hud"><div class="da-pips" aria-hidden="true"></div><span class="da-score">000</span><button type="button" class="da-icon" data-act="sup">Supervisor</button></div>
+    <div class="da-hud"><div class="da-pips" aria-hidden="true"></div><span class="da-score">000</span><button type="button" class="da-icon" data-act="mute" aria-label="Sound"></button><button type="button" class="da-icon" data-act="sup">Supervisor</button></div>
     <div><p class="da-kick"></p><h2></h2></div>
     <div class="da-stage"></div>
     <div class="da-tray"></div>
@@ -78,6 +80,7 @@ export function mountExtraction(root: HTMLElement): () => void {
 
   function say(e: SupervisorEvent, fact = "", expr: Expression = "neutral", lineOverride?: string) {
     S.last = { e, f: fact, x: expr, line: lineOverride };
+    if (expr === "happy") audio.sfx("good"); else if (expr === "shock" || expr === "stern") audio.sfx("bad");
     const r = react(e, S.sup, fact, expr), line = lineOverride ?? r.line;
     supBox.innerHTML = `<div class="da-say">${art.supervisorFace(r.persona.colour, r.persona.id, expr)}<div><b>${r.persona.name.toUpperCase()} · ${r.persona.tag.toUpperCase()}</b><div class="l">${line}</div>${fact ? `<div class="f">${fact}</div>` : ""}</div></div>`;
     if (S.voice) { try { speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(line)); } catch { /* voice is optional */ } }
@@ -89,6 +92,7 @@ export function mountExtraction(root: HTMLElement): () => void {
     let b = $(".da-bubble", stage);
     if (!b) { b = document.createElement("div"); b.className = "da-bubble"; stage.appendChild(b); }
     b.textContent = text; b.classList.add("on");
+    if (/!|aagh/i.test(text)) audio.sfx("ouch");
     later(() => b.classList.remove("on"), 2200);
   }
   /** Records a mistake. Returns true when the step is now locked (unguided mode). */
@@ -129,6 +133,7 @@ export function mountExtraction(root: HTMLElement): () => void {
     g.innerHTML = on && S.mode === "guided" ? zones.map((z) => `<circle class="da-ring" cx="${z.x}" cy="${z.y}" r="${z.r}"/>`).join("") : "";
   }
   function arm(id: string | null) {
+    if (id && id !== armed) audio.sfx("pick");
     armed = id;
     tray.querySelectorAll(".da-tool").forEach((t) => t.classList.toggle("armed", (t as HTMLElement).dataset.tool === id));
     stage.classList.toggle("armed", !!id); rings(!!id);
@@ -142,6 +147,7 @@ export function mountExtraction(root: HTMLElement): () => void {
     const p = new DOMPoint(cx, cy).matrixTransform(m.inverse());
     let best: Zone | null = null, bd = Infinity;
     for (const z of zones) { const d = Math.hypot(z.x - p.x, z.y - p.y); if (d <= z.r && d < bd) { best = z; bd = d; } }
+    audio.sfx("drop");
     onDrop(tool, best ? best.id : null);
   }
   function setTray(tools: ToolDef[]) {
@@ -179,13 +185,16 @@ export function mountExtraction(root: HTMLElement): () => void {
   function go(i: number) {
     cancelAnimationFrame(S.raf); S.timers.forEach(clearTimeout); S.timers = [];
     document.querySelectorAll(".da-ghost").forEach((g) => g.remove());
-    S.i = i; hudUpdate(); SCENES[i]();
+    S.i = i; hudUpdate();
+    const track: Track = i === 0 ? "none" : i === 8 ? "tense" : i === 13 ? "win" : "calm";
+    if (i > 0) audio.play(track);
+    SCENES[i]();
   }
   const best = () => { try { return Number(localStorage.getItem("da-best")) || 0; } catch { return 0; } };
 
   function title() {
     scene("Simulation 001 · Oral surgery", "", `<p class="da-hero">CAN YOU TAKE OUT TOOTH 46?</p><p style="font-weight:600;color:var(--dentine)">Practice like a student. Think like a specialist.</p><div class="da-stage">${art.jawSide({ pdl: true })}</div><p class="da-lead">One synthetic patient. Pick up the instruments, work on the tooth with your own hands, and decide what to do when it stops moving.</p>`, true);
-    button("START ▶", () => go(1));
+    button("START ▶", () => { audio.start(); go(1); });
     if (best()) extra.innerHTML = `<p class="da-lab"><span>YOUR BEST</span><span>${best()} / 100</span></p>`;
   }
   function setup() {
@@ -193,10 +202,12 @@ export function mountExtraction(root: HTMLElement): () => void {
     const draw = () => {
       stage.innerHTML = `<div class="da-opts">${SUPERVISOR_ORDER.map((k) => `<button type="button" class="da-opt${S.sup === k ? " sel" : ""}" data-k="${k}">${art.supervisorFace(PERSONAS[k].colour, k, S.sup === k ? "happy" : "neutral")}<span><strong>${PERSONAS[k].tag}</strong><br>${PERSONAS[k].name}. ${PERSONAS[k].blurb}</span></button>`).join("")}</div>
       <h2 style="font-size:18px">Practice mode</h2><div class="da-opts">${([["guided", "Guided", "Target rings, hints and second tries. Mistakes cost points."], ["unguided", "Unguided", "No rings, no hints. Your first move is final."]] as const).map((m) => `<button type="button" class="da-opt${S.mode === m[0] ? " sel" : ""}" data-m="${m[0]}"><span><strong>${m[1]}</strong><br>${m[2]}</span></button>`).join("")}</div>
+      <label class="da-check"><input type="checkbox" id="da-sound"${audio.muted ? "" : " checked"}><span>Music and sound effects</span></label>
       <label class="da-check"><input type="checkbox" id="da-voice"${S.voice ? " checked" : ""}><span>Read supervisor lines aloud, using this device's voice</span></label>
       <p class="da-small">Supervisors are fictional characters. All four apply the same demo rules. You can switch at any time.</p>`;
       stage.querySelectorAll<HTMLElement>("[data-k]").forEach((b) => (b.onclick = () => { S.sup = b.dataset.k as SupervisorId; draw(); }));
       stage.querySelectorAll<HTMLElement>("[data-m]").forEach((b) => (b.onclick = () => { S.mode = b.dataset.m as PracticeMode; draw(); }));
+      $<HTMLInputElement>("#da-sound", stage).onchange = (e) => { audio.setMuted(!(e.target as HTMLInputElement).checked); muteLabel(); };
       $<HTMLInputElement>("#da-voice", stage).onchange = (e) => { S.voice = (e.target as HTMLInputElement).checked; };
     };
     draw();
@@ -377,7 +388,7 @@ export function mountExtraction(root: HTMLElement): () => void {
           if (holdT >= 0.6 && !counted) {
             counted = true; const side = ang < 0 ? "cheek" : "tongue";
             if (side === lastSide) msg("Same side twice. Take it across to the other side.");
-            else { lastSide = side; moves++; msg(""); const pct = Math.round((moves / mv.movesToDecision) * 60); mb.style.width = `${pct}%`; mp.textContent = `${pct}%`; }
+            else { lastSide = side; moves++; msg(""); audio.sfx("tick"); const pct = Math.round((moves / mv.movesToDecision) * 60); mb.style.width = `${pct}%`; mp.textContent = `${pct}%`; }
           }
         } else if (Math.abs(ang) < 8) { holdT = 0; counted = false; }
         hb.style.width = `${Math.min(100, (holdT / 0.6) * 100)}%`;
@@ -416,7 +427,8 @@ export function mountExtraction(root: HTMLElement): () => void {
     if (split) fx(piece("mes", -40, -14) + piece("dis", 40, 14) + `<path id="cut" d="M161,40 V114" stroke="#8fd8ff" stroke-width="3" stroke-dasharray="4 3"/>`);
     else if (R.fracture) fx(`<path d="M203,160 C206,168 214,172 214,176 C216,186 208,190 200,180 C196,172 196,166 203,160Z" fill="#f6efdc" stroke="#ff5a5a" stroke-width="2"/>` + piece("notip", -10, -8) + `<text x="236" y="150" font-family="Press Start 2P,monospace" font-size="9" fill="#ff5a5a">CRACK</text>`);
     else fx(piece("", 0, 6));
-    later(() => stage.querySelectorAll(".da-piece").forEach((p) => p.classList.add("go")), split ? 900 : 300);
+    if (R.fracture && !split) audio.sfx("crack");
+    later(() => { stage.querySelectorAll(".da-piece").forEach((p) => p.classList.add("go")); audio.sfx("pop"); }, split ? 900 : 300);
     let txt: string, chip = "";
     if (k === "safe") { txt = "Your supervisor joins you. 46 is divided between its two roots, and each root comes out along its own curve. Both root tips are complete."; say(opt.event, fact, "happy"); }
     else if (k === "abandon") { txt = "Your supervisor stops him at the door: he was about to leave with a loose, painful tooth and no plan. A senior colleague divides the tooth and removes both roots while you assist."; say(opt.event, fact, "stern"); }
@@ -472,7 +484,7 @@ export function mountExtraction(root: HTMLElement): () => void {
       stage.innerHTML = `<div class="da-patientrow">${art.patientFace("calm")}<div class="da-pbubble">“So, doc, what do I do when I get home?”</div></div><p class="da-lab"><span>ADVICE CARD ${i + 1} OF ${st.options.length}</span><span>SWIPE OR TAP</span></p><div class="da-card" id="da-card">${o.text}<span class="tag"></span></div><div class="da-two"><button type="button" class="da-no" data-v="0">✗ Don't say it</button><button type="button" class="da-yes" data-v="1">✓ Tell him</button></div>`;
       const card = $("#da-card", stage); let x0 = 0, dx = 0, down = false, busy = false;
       const choose = (yes: boolean) => {
-        if (busy) return; busy = true; if (yes) said.push(o.id);
+        if (busy) return; busy = true; if (yes) said.push(o.id); audio.sfx(S.mode === "guided" ? (yes === !!o.correct ? "good" : "bad") : "tick");
         const tag = $(".tag", card);
         if (S.mode === "guided") { const good = yes === !!o.correct; tag.textContent = good ? (yes ? "GOOD ADVICE" : "RIGHTLY BINNED") : yes ? "HARMFUL" : "MISSED"; tag.style.color = good ? "#1c7a3a" : "#c22a2a"; }
         card.style.transform = `translateX(${yes ? 120 : -120}%) rotate(${yes ? 12 : -12}deg)`; card.style.opacity = "0";
@@ -549,12 +561,17 @@ export function mountExtraction(root: HTMLElement): () => void {
       <div class="da-panel"><p class="da-kick">Share your result</p><textarea rows="4" readonly aria-label="Shareable result" id="da-share">${rep.shareText}</textarea><p class="da-small">No patient details are included.</p></div>
       <p class="da-small">${MOTOR_SKILL_DISCLAIMER} The rules in this demo have not been reviewed by a clinician.</p>`, true);
     say(closingEvent(rep.score), "", rep.score >= 85 ? "happy" : rep.score >= 55 ? "neutral" : "stern");
+    later(() => audio.sfx("fanfare"), 250);
     const cp = button("COPY RESULT", () => { try { navigator.clipboard.writeText(rep.shareText).then(() => { cp.textContent = "COPIED"; }, () => $<HTMLTextAreaElement>("#da-share", stage).select()); } catch { $<HTMLTextAreaElement>("#da-share", stage).select(); } }, "da-ghostbtn");
     button("PLAY AGAIN ▶", () => go(1));
   }
 
   const SCENES = [title, setup, brief, site, inject, testNumb, elevate, deliver, decision, outcome, closeout, aftercare, followup, report];
 
+  const muteBtn = $("[data-act=mute]");
+  const muteLabel = () => { muteBtn.textContent = audio.muted ? "♪ Off" : "♪ On"; muteBtn.setAttribute("aria-pressed", String(!audio.muted)); };
+  muteLabel();
+  muteBtn.onclick = () => { audio.start(); audio.setMuted(!audio.muted); muteLabel(); };
   $("[data-act=sup]").onclick = () => {
     openModal(`<p class="da-kick">Switch at any time</p><h2>Supervisor</h2><div class="da-opts">${SUPERVISOR_ORDER.map((k) => `<button type="button" class="da-opt${S.sup === k ? " sel" : ""}" data-k="${k}">${art.supervisorFace(PERSONAS[k].colour, k, "neutral")}<span><strong>${PERSONAS[k].tag}</strong><br>${PERSONAS[k].blurb}</span></button>`).join("")}</div><label class="da-check"><input type="checkbox" id="da-v2"${S.voice ? " checked" : ""}><span>Read lines aloud</span></label>`);
     modalIn.querySelectorAll<HTMLElement>("[data-k]").forEach((b) => (b.onclick = () => { S.sup = b.dataset.k as SupervisorId; modal.classList.remove("on"); if (S.last) say(S.last.e, S.last.f, S.last.x, S.last.line && S.sup !== "osce" ? S.last.line : undefined); }));
@@ -562,5 +579,5 @@ export function mountExtraction(root: HTMLElement): () => void {
   };
 
   go(0);
-  return () => { cancelAnimationFrame(S.raf); S.timers.forEach(clearTimeout); document.querySelectorAll(".da-ghost").forEach((g) => g.remove()); root.innerHTML = ""; };
+  return () => { audio.stop(); cancelAnimationFrame(S.raf); S.timers.forEach(clearTimeout); document.querySelectorAll(".da-ghost").forEach((g) => g.remove()); root.innerHTML = ""; };
 }
